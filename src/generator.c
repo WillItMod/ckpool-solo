@@ -263,11 +263,11 @@ static bool server_alive(ckpool_t *ckp, server_instance_t *si, bool pinging)
 		/* If no btcaddress is specified in solobtc mode, use the
 		 * donation addresses from mainnet for coinbase validation
 		 * later on, although it will not be used for mining. */
-		if (validate_address(cs, ckp->donaddress, &ckp->script, &ckp->segwit))
+		if (validate_address(cs, ckp->donaddress, &ckp->script, &ckp->segwit, NULL, NULL, 0))
 			ckp->btcaddress = ckp->donaddress;
 	}
 
-	if (!ckp->node && !validate_address(cs, ckp->btcaddress, &ckp->script, &ckp->segwit)) {
+	if (!ckp->node && !validate_address(cs, ckp->btcaddress, &ckp->script, &ckp->segwit, NULL, NULL, 0)) {
 		LOGWARNING("Invalid btcaddress: %s !", ckp->btcaddress);
 		goto out;
 	}
@@ -913,7 +913,8 @@ out:
 	return ret;
 }
 
-bool generator_checkaddr(ckpool_t *ckp, const char *addr, bool *script, bool *segwit)
+bool generator_checkaddr(ckpool_t *ckp, const char *addr, bool *script, bool *segwit,
+			 char *txnout, int *txnoutlen, int txnoutcap)
 {
 	gdata_t *gdata = ckp->gdata;
 	server_instance_t *si;
@@ -926,7 +927,7 @@ bool generator_checkaddr(ckpool_t *ckp, const char *addr, bool *script, bool *se
 		goto out;
 	}
 	cs = &si->cs;
-	ret = validate_address(cs, addr, script, segwit);
+	ret = validate_address(cs, addr, script, segwit, txnout, txnoutlen, txnoutcap);
 out:
 	return ret;
 }

@@ -31,16 +31,21 @@ static bool check_required_rule(const char* rule)
 
 /* Take a bitcoin address and do some sanity checks on it, then send it to
  * bitcoind to see if it's a valid address */
-bool validate_address(connsock_t *cs, const char *address, bool *script, bool *segwit)
+bool validate_address(connsock_t *cs, const char *address, bool *script, bool *segwit,
+		      char *txnout, int *txnoutlen, int txnoutcap)
 {
 	json_t *val, *res_val, *valid_val, *tmp_val;
 	char rpc_req[128];
 	bool ret = false;
+	const char *scriptpubkey;
+	size_t scripthexlen;
 
 	if (unlikely(!address)) {
 		LOGWARNING("Null address passed to validate_address");
 		return ret;
 	}
+	if (txnoutlen)
+		*txnoutlen = 0;
 
 	snprintf(rpc_req, 128, "{\"method\": \"validateaddress\", \"params\": [\"%s\"]}\n", address);
 	val = json_rpc_response(cs, rpc_req);
@@ -84,6 +89,17 @@ bool validate_address(connsock_t *cs, const char *address, bool *script, bool *s
 	if (unlikely(!tmp_val))
 		goto out;
 	*segwit = json_is_true(tmp_val);
+	if (txnout && txnoutlen && txnoutcap > 0) {
+		tmp_val = json_object_get(res_val, "scriptPubKey");
+		scriptpubkey = tmp_val ? json_string_value(tmp_val) : NULL;
+		if (scriptpubkey && validhex(scriptpubkey)) {
+			scripthexlen = strlen(scriptpubkey);
+			if (!(scripthexlen % 2) && (int)(scripthexlen / 2) <= txnoutcap) {
+				if (hex2bin(txnout, scriptpubkey, scripthexlen / 2))
+					*txnoutlen = (int)(scripthexlen / 2);
+			}
+		}
+	}
 	LOGDEBUG("Bitcoin address %s IS valid%s%s", address, *script ? " script" : "",
 		 *segwit ? " segwit" : "");
 out:

@@ -5376,9 +5376,11 @@ static user_instance_t *generate_user(ckpool_t *ckp, stratum_instance_t *client,
 
 	if (!ckp->proxy && (new_user || !user->btcaddress)) {
 		/* Is this a btc address based username? */
-		if (generator_checkaddr(ckp, username, &user->script, &user->segwit)) {
+		if (generator_checkaddr(ckp, username, &user->script, &user->segwit,
+					user->txnbin, &user->txnlen, sizeof(user->txnbin))) {
 			user->btcaddress = true;
-			user->txnlen = address_to_txn(user->txnbin, username, user->script, user->segwit);
+			if (!user->txnlen)
+				user->txnlen = address_to_txn(user->txnbin, username, user->script, user->segwit);
 		}
 	}
 	if (new_user) {
@@ -6863,9 +6865,11 @@ static user_instance_t *generate_remote_user(ckpool_t *ckp, const char *workerna
 
 	if (!ckp->proxy && (new_user || !user->btcaddress)) {
 		/* Is this a btc address based username? */
-		if (generator_checkaddr(ckp, username, &user->script, &user->segwit)) {
+		if (generator_checkaddr(ckp, username, &user->script, &user->segwit,
+					user->txnbin, &user->txnlen, sizeof(user->txnbin))) {
 			user->btcaddress = true;
-			user->txnlen = address_to_txn(user->txnbin, username, user->script, user->segwit);
+			if (!user->txnlen)
+				user->txnlen = address_to_txn(user->txnbin, username, user->script, user->segwit);
 		}
 	}
 	if (new_user) {
@@ -8532,29 +8536,37 @@ void *stratifier(void *arg)
 		cksleep_ms(10);
 
 	if (!ckp->proxy) {
-		if (!generator_checkaddr(ckp, ckp->btcaddress, &ckp->script, &ckp->segwit)) {
+		if (!generator_checkaddr(ckp, ckp->btcaddress, &ckp->script, &ckp->segwit,
+					 sdata->txnbin, &sdata->txnlen, sizeof(sdata->txnbin))) {
 			LOGEMERG("Fatal: btcaddress invalid according to bitcoind");
 			goto out;
 		}
+		if (!sdata->txnlen)
+			sdata->txnlen = address_to_txn(sdata->txnbin, ckp->btcaddress, ckp->script, ckp->segwit);
 
 		/* Store this for use elsewhere */
 		hex2bin(scriptsig_header_bin, scriptsig_header, 41);
-		sdata->txnlen = address_to_txn(sdata->txnbin, ckp->btcaddress, ckp->script, ckp->segwit);
 
 		/* Find a valid donation address if possible */
-		if (generator_checkaddr(ckp, ckp->donaddress, &ckp->donscript, &ckp->donsegwit)) {
+		if (generator_checkaddr(ckp, ckp->donaddress, &ckp->donscript, &ckp->donsegwit,
+					sdata->dontxnbin, &sdata->dontxnlen, sizeof(sdata->dontxnbin))) {
 			ckp->donvalid = true;
-			sdata->dontxnlen = address_to_txn(sdata->dontxnbin, ckp->donaddress, ckp->donscript, ckp->donsegwit);
+			if (!sdata->dontxnlen)
+				sdata->dontxnlen = address_to_txn(sdata->dontxnbin, ckp->donaddress, ckp->donscript, ckp->donsegwit);
 			LOGNOTICE("BTC donation address valid %s", ckp->donaddress);
-		} else if (generator_checkaddr(ckp, ckp->tndonaddress, &ckp->donscript, &ckp->donsegwit)) {
+		} else if (generator_checkaddr(ckp, ckp->tndonaddress, &ckp->donscript, &ckp->donsegwit,
+					       sdata->dontxnbin, &sdata->dontxnlen, sizeof(sdata->dontxnbin))) {
 			ckp->donaddress = ckp->tndonaddress;
 			ckp->donvalid = true;
-			sdata->dontxnlen = address_to_txn(sdata->dontxnbin, ckp->donaddress, ckp->donscript, ckp->donsegwit);
+			if (!sdata->dontxnlen)
+				sdata->dontxnlen = address_to_txn(sdata->dontxnbin, ckp->donaddress, ckp->donscript, ckp->donsegwit);
 			LOGNOTICE("BTC testnet donation address valid %s", ckp->donaddress);
-		} else if (generator_checkaddr(ckp, ckp->rtdonaddress, &ckp->donscript, &ckp->donsegwit)) {
+		} else if (generator_checkaddr(ckp, ckp->rtdonaddress, &ckp->donscript, &ckp->donsegwit,
+					       sdata->dontxnbin, &sdata->dontxnlen, sizeof(sdata->dontxnbin))) {
 			ckp->donaddress = ckp->rtdonaddress;
 			ckp->donvalid = true;
-			sdata->dontxnlen = address_to_txn(sdata->dontxnbin, ckp->donaddress, ckp->donscript, ckp->donsegwit);
+			if (!sdata->dontxnlen)
+				sdata->dontxnlen = address_to_txn(sdata->dontxnbin, ckp->donaddress, ckp->donscript, ckp->donsegwit);
 			LOGNOTICE("BTC regtest donation address valid %s", ckp->donaddress);
 		} else
 			LOGNOTICE("No valid donation address found");

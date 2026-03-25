@@ -12,7 +12,8 @@
 
 typedef struct genwork gbtbase_t;
 
-bool validate_address(connsock_t *cs, const char *address, bool *script, bool *segwit);
+bool validate_address(connsock_t *cs, const char *address, bool *script, bool *segwit,
+		      char *txnout, int *txnoutlen, int txnoutcap);
 json_t *validate_txn(connsock_t *cs, const char *txn);
 bool gen_gbtbase(connsock_t *cs, gbtbase_t *gbt);
 void clear_gbtbase(gbtbase_t *gbt);
